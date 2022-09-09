@@ -1070,23 +1070,23 @@ if(document.domain.includes('ameblo')){
     monitor5.observe(target5, {childList: true, subtree: true}); // 監視開始
 
     function blocker_dia_bp(){
-        let k;
         let user_li=[];
         let user_href=[];
 
         user_li=document.querySelectorAll('#iineEntryContents li');
         if(user_li.length !=0){
-            for(k=0; k<user_li.length; k++){ // ダイアログのリストのマスク
+            for(let k=0; k<user_li.length; k++){ // ダイアログのリストのマスク
                 if(user_li[k].querySelector('a')){
                     user_href[k]=user_li[k].querySelector('a').getAttribute('href');
 
                     if(block_regex_id.test(user_href[k])==true){ // IDが該当する場合
                         if(edit_mode==0){
                             user_li[k].style.display='none';
-                            user_li[k].style.boxShadow='none'; }
+                            user_li[k].style.outline='none'; }
                         else{
                             user_li[k].style.display='list-item';
-                            user_li[k].style.boxShadow='#fff 0 0 0 1px inset, red 0 0 0 3px inset'; }
+                            user_li[k].style.outline='2px solid red';
+                            user_li[k].style.outlineOffset='-3px'; }
 
                         let user_src=user_li[k].querySelector('.iineProfImg img').getAttribute('src');
                         if(user_src){
@@ -1100,8 +1100,7 @@ if(document.domain.includes('ameblo')){
                         write_local(); } // imgの再登録 ローカルストレージ 保存
 
                     else{
-                        user_li[k].style.display='list-item';
-                        user_li[k].style.boxShadow='none';
+                        user_li[k].style.outline='none';
                         prevent(user_li[k], user_href[k]); }
 
                     function prevent(link, url){
@@ -1118,46 +1117,42 @@ if(document.domain.includes('ameblo')){
 
 
     function checker_bp(){
-        let k;
         let user_li=[];
         let user_href=[];
         let user_id=[];
         let user_src=[];
 
-        if(document.querySelector('#announcer')){ // ブログページ
-            user_li=document.querySelectorAll('#iineEntryContents li');
-            if(user_li.length !=0){
-                for(k=0; k<user_li.length; k++){
-                    let n=k;
-                    let user_link=user_li[n].querySelector('a');
-                    if(user_link){
-                        if(edit_mode==0){
-                            user_link.style.pointerEvents='auto'; }
-                        if(edit_mode==1){
-                            user_link.style.pointerEvents='none';
-                            user_href[n]=user_link.getAttribute('href');
-                            user_src[n]=user_li[n].querySelector('img').getAttribute('src');
-
-                            user_li[n].onclick=function(event){ // リストのクリックで設定
-                                local_backup(n); }}}}
-
-                function local_backup(n){
+        user_li=document.querySelectorAll('#iineEntryContents li');
+        if(user_li.length !=0){
+            for(let k=0; k<user_li.length; k++){
+                let user_link=user_li[k].querySelector('a');
+                if(user_link){
+                    if(edit_mode==0){
+                        user_link.style.pointerEvents='auto'; }
                     if(edit_mode==1){
-                        if(block_regex_id.test(user_href[n])!=true){ // 登録が無ければ登録
-                            user_id[n]=user_href[n].replace(/\//g, '');
-                            user_src[n]=
-                                user_src[n].replace('https://stat.profile.ameba.jp/profile_images/', '');
-                            user_src[n]=user_src[n].replace(/\?cpc=100/g, '');
-                            iine_block_data.push([user_id[n], user_src[n]]);
-                            write_local(); } // ローカルストレージ 保存
+                        user_link.style.pointerEvents='none';
+                        user_href[k]=user_li[k].querySelector('a').getAttribute('href');
+                        user_src[k]=user_li[k].querySelector('img').getAttribute('src');
+                        user_li[k].onclick=function(event){ // リストのクリックで設定
+                            local_backup(k); }}}}
 
-                        else if(block_regex_id.test(user_href[n])==true){ // 登録あれば登録削除
-                            user_id[n]=user_href[n].replace(/\//g, '');
-                            iine_block_data.splice(iine_block_id.indexOf(user_id[n]), 1);
-                            write_local(); } // ローカルストレージ 保存
+            function local_backup(k){
+                if(edit_mode==1){
+                    if(block_regex_id.test(user_href[k])!=true){ // 登録が無ければ登録
+                        user_id[k]=user_href[k].replace(/\//g, '');
+                        user_src[k]=
+                            user_src[k].replace('https://stat.profile.ameba.jp/profile_images/', '');
+                        user_src[k]=user_src[k].replace(/\?cpc=100/g, '');
+                        iine_block_data.push([user_id[k], user_src[k]]);
+                        write_local(); } // ローカルストレージ 保存
 
-                        reg_set();
-                        blocker_dia_bp(); }}}}
+                    else if(block_regex_id.test(user_href[k])==true){ // 登録あれば登録削除
+                        user_id[k]=user_href[k].replace(/\//g, '');
+                        iine_block_data.splice(iine_block_id.indexOf(user_id[k]), 1);
+                        write_local(); } // ローカルストレージ 保存
+
+                    reg_set();
+                    blocker_dia_bp(); }}}
     } // checker()
 
 
