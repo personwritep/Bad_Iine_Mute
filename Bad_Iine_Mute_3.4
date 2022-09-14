@@ -29,7 +29,9 @@ if(agent.indexOf('firefox') > -1){ ua=1; } // Firefoxの場合のフラッグ
 let read_json=localStorage.getItem('iine_id_back'); // ローカルストレージ 保存名
 iine_block_data=JSON.parse(read_json);
 if(iine_block_data==null){
-    iine_block_data=[['tmp1', 'img1'], ['tmp2', 'img2']]; }
+    iine_block_data=[['tmp1', 'img1'], ['tmp2', 'img2']];
+    write_local(); }
+
 
 reg_set();
 
