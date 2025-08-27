@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name        Bad Iine Mute
 // @namespace        http://tampermonkey.net/
-// @version        4.1
+// @version        4.2
 // @description        「管理画面」から不良な「いいね！」を非表示にする
 // @author        Ameba Blog User
 // @match        https://blog.ameba.jp/ucs/top*
@@ -179,7 +179,7 @@ if(document.domain.includes('blog.ameba')){
             let iine_th=document.querySelectorAll('#iineHistoryUserFrame th');
             iine_th[0].innerHTML=
                 '　　　　　　　　　　'+ svg_mark_t +
-                '　ユーザー名 / ブログ名  　 　　Sift+Click : ソート';
+                '　ユーザー名 / ブログ名  　 　　Shift+Click : ソート';
             iine_th[0].style.textIndent='-20em';
             iine_th[0].style.overflow='hidden';
             title_disp(iine_th[0], iine_th[1]);
@@ -1354,7 +1354,7 @@ function end_more_dia(scroll_box, button){
     setTimeout(()=>{
         let more=document.querySelector(button); // Moreがある場合は全て呼込む
         let item=document.querySelectorAll(scroll_box +' li');
-        if(more && item.length<18){ // リストを最低18行まで自動で開く 🔴
+        if(more && item.length<31){ // リストを可能なら40行まで開く 🔴
             more.click();
         }}, 500);
 
