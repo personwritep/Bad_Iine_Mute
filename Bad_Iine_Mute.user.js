@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name        Bad Iine Mute
 // @namespace        http://tampermonkey.net/
-// @version        4.2
+// @version        4.3
 // @description        「管理画面」から不良な「いいね！」を非表示にする
 // @author        Ameba Blog User
 // @match        https://blog.ameba.jp/ucs/top*
@@ -1346,9 +1346,9 @@ function end_more_dia(scroll_box, button){
         'background: #fff; }'+
         '</style>';
 
-    let more_sw=document.querySelector(button);
-    if(more_sw && !more_sw.querySelector('#imute_style')){
-        more_sw.insertAdjacentHTML('beforeend', insert_style); }
+    if(!document.querySelector('#imute_style')){
+        document.body.insertAdjacentHTML('beforeend', insert_style); }
+
 
 
     setTimeout(()=>{
@@ -1357,6 +1357,7 @@ function end_more_dia(scroll_box, button){
         if(more && item.length<31){ // リストを可能なら40行まで開く 🔴
             more.click();
         }}, 500);
+
 
 
     document.addEventListener('keydown', function(event){
