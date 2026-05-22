@@ -1,0 +1,464 @@
+// ==UserScript==
+// @name         Bad Iine Mute BlogPage
+// @namespace    http://tampermonkey.net/
+// @version      1.8
+// @description  「ブログページ」の不良な「いいね！」を非表示にする
+// @author       Ameba Blog User
+// @match        https://ameblo.jp/*
+// @noframes
+// @run-at       document-body
+// @grant        none
+// ==/UserScript==
+
+
+let iine_block_data={}; // 総合ブロックデータ
+let iine_block_id=[];
+let iine_block_img=[];
+let block_filter_id;
+let block_regex_id;
+let block_filter_img;
+let block_regex_img;
+let edit_mode=0;
+let zoom_f; // bodyのzoom値
+
+let ua=0;
+let agent=window.navigator.userAgent.toLowerCase();
+if(agent.indexOf('firefox') > -1){ ua=1; } // Firefoxの場合のフラッグ
+
+
+let read_json=localStorage.getItem('iine_id_back'); // ローカルストレージ 保存名
+iine_block_data=JSON.parse(read_json);
+if(iine_block_data==null){
+    iine_block_data=[['tmp1', 'img1'], ['tmp2', 'img2']]; }
+
+reg_set();
+
+function reg_set(){
+    iine_block_id=[];
+    iine_block_img=[];
+    for(let k=0; k<iine_block_data.length; k++){
+        iine_block_id[k]=iine_block_data[k][0];
+        iine_block_img[k]=iine_block_data[k][1]; }
+    block_filter_id=iine_block_id.join('|');
+    block_regex_id=RegExp(block_filter_id);
+    block_filter_img=iine_block_img.join('|');
+    block_regex_img=RegExp(block_filter_img); }
+
+
+
+let target0=document.querySelector('body'); // 監視 target
+let monitor0=new MutationObserver(mode_select);
+monitor0.observe(target0, {childList: true, subtree: true}); // 監視開始
+
+mode_select();
+
+function mode_select(){
+    if(document.querySelector('#announcer')){ // ブログページ
+        let iine_title=document.querySelector('#iineEntryHeader');
+        if(iine_title){
+            title_disp();
+            smart();
+            open_more(); // 設定数のリストを自動で開く
+            end_more();
+
+            iine_title.onclick=function(event){
+                event.preventDefault();
+                if(event.altKey==true){ // 「Altキー ＋ 左クリック」
+                    if(edit_mode==0){
+                        edit_mode=1;
+                        monitor0.disconnect();
+                        file_backup();
+                        monitor0.observe(target0, {childList: true}); } // ファイル保存 ブログページ
+                    else{
+                        edit_mode=0;
+                        file_backup_end(); }}
+                else{
+                    if(edit_mode==0){
+                        edit_mode=1; }
+                    else{
+                        edit_mode=0;
+                        file_backup_end(); }}
+
+                title_disp();
+                blocker_dia(); }}
+
+        if(!iine_title){ // いいねダイアログが非表示になった時
+            edit_mode=0; }
+    }} // mode_select()
+
+
+function title_disp(){
+    let iine_title=document.querySelector('#iineEntryHeader');
+    let iine_span=document.querySelectorAll('#iineEntryHeader span');
+    let iine_p=document.querySelector('#iineEntryHeader p');
+    if(edit_mode==0){
+        iine_title.style.boxShadow='none';
+        iine_span[0].style.color='#333';
+        iine_span[1].style.color='#999';
+        iine_span[2].style.color='#fe9019';
+        iine_p.style.color='#333'; }
+    else{
+        iine_title.style.boxShadow='inset 0 0 0 30px red';
+        iine_span[0].style.color='#fff';
+        iine_span[1].style.color='#fff';
+        iine_span[2].style.color='#fff';
+        iine_p.style.color='#fff'; }}
+
+
+function open_more(){
+    setTimeout(()=>{
+        let more=document.querySelector('#moreLinkBottom'); // Moreがある場合は全て呼込む
+        let item=document.querySelectorAll('#iineEntryContents li');
+        if(more && item.length<18){ // リストを最低18行まで自動で開く 🔴
+            more.click(); }}, 500); }
+
+
+function end_more(){
+    let senser=0;
+    let next=0;
+    let interval;
+    let list_body;
+
+    let style_text=
+        'position: absolute; bottom: -50px; width: 100%; font: 14px Meiryo; '+
+        'padding: 10px 0; height: 20px; text-align: center; border-radius: 6px; '+
+        'background: #efefef; color: #000;';
+    let insert_disp;
+    let frame=document.querySelector('#iineEntryFrame');
+    insert_disp=document.createElement('div');
+    insert_disp.setAttribute('id', 'imute_disp');
+    insert_disp.setAttribute('style', style_text);
+    insert_disp.textContent='Space : 連続スクロール / 停止';
+    let imute_d=frame.querySelector('#imute_disp');
+    if(!imute_d){
+        frame.appendChild(insert_disp); }
+
+    document.addEventListener('keydown', function(event){
+        event.stopImmediatePropagation();
+        if(event.keyCode==32){
+            list_body=document.querySelector('#iineEntryContents'); // scrall要素
+            if(list_body){
+                list_body.style.maxHeight='80vh'; }
+            if(next==0){
+                next=1;
+                interval=setInterval(
+                    function(){
+                        go();
+                        stop();
+                        senser+=1;
+                    }, 500); }
+            else{
+                next=0;
+                clearInterval(interval); }
+            setTimeout(()=>{
+                list_body.scrollBy(0, 1000); }, 600); } // リスト末尾を表示
+
+        function go(){
+            let more=document.querySelector('#moreLinkBottom'); // Moreボタン
+            if(more && next==1){
+                more.click();
+                senser=0; }}
+
+        function stop(){
+            if(senser>4){
+                next=0;
+                senser=0;
+                clearInterval(interval);
+                hide_disp(); }}
+
+        function hide_disp(){
+            let imute_d=document.querySelector('#imute_disp');
+            if(imute_d){
+                imute_d.style.display='none'; }
+            list_body.scrollBy(0, 1000); }});
+
+} //end_more()
+
+
+
+function smart(){
+    let headerT=document.querySelector('.iineListHeaderText');
+    if(headerT){
+        let styleT=document.createElement('style');
+        styleT.textContent='.s.s-nice::before { content: ""; }';
+        monitor0.disconnect();
+        headerT.appendChild(styleT);
+        monitor0.observe(target0, {childList: true});
+
+        headerT.style.fontSize='0';
+        let nice=headerT.querySelector('.s.s-nice');
+        if(nice){
+            nice.textContent='💛';
+            nice.style.fontSize='16px';
+            nice.style.verticalAlign='-1px';
+            nice.style.paddingRight='6px'; }
+        let title=headerT.querySelector('.iineListHeaderText .tx_bold');
+        if(title){
+            title.style.fontSize='14px'; }
+        let count=headerT.querySelector('.iineListHeaderText .tx_grayA');
+        if(count){
+            count.style.fontSize='14px'; }}}
+
+
+
+let target1=document.querySelector('body'); // 監視 target
+let monitor1=new MutationObserver(blocker_dia);
+monitor1.observe(target1, {childList: true, subtree: true}); // 監視開始
+
+function blocker_dia(){
+    let k;
+    let user_li=[];
+    let user_href=[];
+
+    if(document.querySelector('#announcer')){ // ブログページ
+        user_li=document.querySelectorAll('#iineEntryContents li');
+        if(user_li.length !=0){
+            for(k=0; k<user_li.length; k++){ // ダイアログのリストのマスク
+                if(user_li[k].querySelector('a')){
+                    user_href[k]=user_li[k].querySelector('a').getAttribute('href');
+                    if(block_regex_id.test(user_href[k])==true){ // IDが該当する場合
+                        if(edit_mode==0){
+                            user_li[k].style.display='none';
+                            user_li[k].style.boxShadow='none'; }
+                        else{
+                            user_li[k].style.display='list-item';
+                            user_li[k].style.boxShadow='#fff 0 0 0 1px inset, red 0 0 0 3px inset'; }
+
+                        let user_src=user_li[k].querySelector('.iineProfImg img').getAttribute('src');
+                        if(user_src){
+                            user_src=user_src.replace('https://stat.profile.ameba.jp/profile_images/', '');
+                            user_src=user_src.replace(/\?cpc=100/g, ''); }
+                        else{
+                            user_src=''; } // imgが無い場合
+                        for(let s=0; s<iine_block_data.length; s++){
+                            if(user_href[k].indexOf(iine_block_data[s][0])!=-1){
+                                iine_block_data[s][1]=user_src; }} // ID該当した場合にimgを再登録
+                        let write_json=JSON.stringify(iine_block_data);
+                        localStorage.setItem('iine_id_back', write_json); } // imgの再登録
+
+                    else{
+                        user_li[k].style.display='list-item';
+                        user_li[k].style.boxShadow='none'; }}}}
+
+        get_src(); }
+
+} // blocker_dia()
+
+
+
+let target2=document.querySelector('body'); // 監視 target
+let monitor2=new MutationObserver(checker);
+monitor2.observe(target2, {childList: true, subtree: true, attributes: true}); // 監視開始
+
+function checker(){
+    let k;
+    let user_li=[];
+    let user_href=[];
+    let user_id=[];
+    let user_src=[];
+
+    if(document.querySelector('#announcer')){ // ブログページ
+        user_li=document.querySelectorAll('#iineEntryContents li');
+        if(user_li.length !=0){
+            for(k=0; k<user_li.length; k++){
+                let n=k;
+                let user_link=user_li[n].querySelector('a');
+                if(user_link){
+                    if(edit_mode==0){
+                        user_link.style.pointerEvents='auto'; }
+                    if(edit_mode==1){
+                        user_link.style.pointerEvents='none';
+                        user_href[n]=user_link.getAttribute('href');
+                        user_src[n]=user_li[n].querySelector('img').getAttribute('src');
+
+                        user_li[n].onclick=function(event){ // リストのクリックで設定
+                            local_backup(n); }}}}
+
+            function local_backup(n){
+                if(edit_mode==1){
+                    if(block_regex_id.test(user_href[n])!=true){ // 登録が無ければ登録
+                        user_id[n]=user_href[n].replace(/\//g, '');
+                        user_src[n]=
+                            user_src[n].replace('https://stat.profile.ameba.jp/profile_images/', '');
+                        user_src[n]=user_src[n].replace(/\?cpc=100/g, '');
+                        iine_block_data.push([user_id[n], user_src[n]]);
+                        let write_json=JSON.stringify(iine_block_data);
+                        localStorage.setItem('iine_id_back', write_json); }
+
+                    else if(block_regex_id.test(user_href[n])==true){ // 登録あれば登録削除
+                        user_id[n]=user_href[n].replace(/\//g, '');
+                        iine_block_data.splice(iine_block_id.indexOf(user_id[n]), 1);
+                        let write_json=JSON.stringify(iine_block_data);
+                        localStorage.setItem('iine_id_back', write_json); }
+
+                    reg_set();
+                    blocker_dia(); }}}}
+} // checker()
+
+
+
+function file_backup(){
+    let style_text='position: absolute; top: -60px; width: 100%; font: 13px Meiryo; '+
+        'height: 40px; border-radius: 6px; background: #e2eef0; color: #000;';
+    let insert_dialog;
+    let frame=document.querySelector('#iineEntryFrame');
+
+    insert_dialog=document.createElement('div');
+    insert_dialog.setAttribute('id', 'imute_dia');
+    insert_dialog.setAttribute('style', style_text);
+    let imute=frame.querySelector('#imute_dia');
+    if(!imute){
+        frame.appendChild(insert_dialog); }
+
+    let button1=document.createElement('input');
+    button1.setAttribute('type', 'submit');
+    button1.setAttribute('value', '排除リストを保存する');
+    button1.setAttribute(
+        'style', 'padding: 2px 8px 0; margin: 7px 15px 0 20px; font: 13px Meiryo;');
+    if(ua==1){
+        button1.setAttribute(
+            'style', 'padding: 1px 8px 0; margin: 7px 15px 0 20px; font: 13px Meiryo;'); }
+    insert_dialog.appendChild(button1);
+
+    button1.onclick=function(){
+        let write_json=JSON.stringify(iine_block_data);
+        let blob=new Blob([write_json], {type: 'application/json'});
+        let a_elem=document.createElement('a');
+        a_elem.href=URL.createObjectURL(blob);
+        document.body.appendChild(a_elem);
+        a_elem.download='iine_mute_bp.json'; // 保存ファイル名
+        a_elem.click();
+        document.body.removeChild(a_elem);
+        URL.revokeObjectURL(a_elem.href); }
+
+    let button_add=document.createElement('input');
+    button_add.setAttribute('type', 'checkbox');
+    button_add.setAttribute('style', 'margin: 0 5px 0 20px; vertical-align: -3px;');
+    insert_dialog.appendChild(button_add);
+
+    let button_add_label=document.createElement('span');
+    button_add_label.setAttribute('style', 'background: #e2eef0; vertical-align: -1px;');
+    button_add_label.innerText='差分追加';
+    insert_dialog.appendChild(button_add_label);
+
+    let button2=document.createElement('input');
+    button2.setAttribute('type', 'file');
+    button2.setAttribute(
+        'style', 'margin: 0 0 0 10px; width: 260px; vertical-align: 1px; font: 13px Meiryo;');
+    insert_dialog.appendChild(button2);
+
+    button_add.checked=true;
+    button2.addEventListener("change" , function(){
+        if(!(button2.value)) return; // ファイルが選択されない場合
+        let file_list=button2.files;
+        if(!file_list) return; // ファイルリストが選択されない場合
+        let file=file_list[0];
+        if(!file) return; // ファイルが無い場合
+
+        let file_reader=new FileReader();
+        file_reader.readAsText(file);
+        file_reader.onload=function(){
+            if(file_reader.result.slice(0, 15)=='[["tmp1","img1"'){ // iine_mute.jsonの確認
+                let data_in=JSON.parse(file_reader.result);
+                if(button_add.checked==true){ // 差分追加処理
+                    for(let k=0; k<data_in.length; k++){
+                        if(block_regex_id.test(data_in[k][0])!=true){
+                            iine_block_data.push([data_in[k][0], data_in[k][1]]); }}}
+                else{
+                    iine_block_data=data_in; } // 読込み上書き処理
+                let write_json=JSON.stringify(iine_block_data);
+                localStorage.setItem('iine_id_back', write_json); // ローカルストレージ 保存名
+
+                for(let k=0; k<iine_block_data.length; k++){
+                    iine_block_id[k]=iine_block_data[k][0]; }
+                block_filter_id=iine_block_id.join('|');
+                block_regex_id=RegExp(block_filter_id);
+                reg_set();
+                blocker_dia(); }}; });
+
+    let button3=document.createElement('input');
+    button3.setAttribute('type', 'submit');
+    button3.setAttribute('value', '\uEA34');
+    let style_text_x=
+        'position: absolute; top: -9px; right: -9px; width: 26px; height: 26px; '+
+        'font: 14px ameba-symbols; text-indent: -2px; line-height: 21px; '+
+        'border: 2px solid #fff; border-radius: 50%; background: #999; color: #fff;';
+    if(ua==1){
+        style_text_x=
+            'position: absolute; top: -9px; right: -9px; width: 26px; height: 26px;'+
+            'font: 13px ameba-symbols; text-indent: -3px; line-height: 24px; '+
+            'border: 2px solid #fff; border-radius: 50%; background: #999; color: #fff;'; }
+    button3.setAttribute('style', style_text_x);
+    insert_dialog.appendChild(button3);
+    button3.onclick=function(){
+        insert_dialog.remove(); }
+} // file_backup()
+
+
+function file_backup_end(){
+    let frame=document.querySelector('#iineEntryFrame');
+    if(frame){
+        let imute=frame.querySelector('#imute_dia');
+        if(imute){
+            monitor0.disconnect();
+            imute.remove();
+            monitor0.observe(target0, {childList: true}); }}}
+
+
+
+function get_src(){
+    let css=
+        'position: fixed; z-index: 10000; font: normal 16px Meiryo; '+
+        'text-shadow: #fff 1px 1px 0, #fff 1px -1px 0, #fff -1px 1px 0, #fff -1px -1px 0; '+
+        'cursor: default; display: none;';
+    let menu=document.createElement('div');
+    menu.setAttribute('id', 'img_menu');
+    menu.setAttribute('style', css);
+    if(!document.getElementById('img_menu')){
+        document.querySelector('body').appendChild(menu); }
+
+    let icon_img=[];
+    icon_img=document.querySelectorAll('#iineEntryFrame img');
+
+    for(let k=0; k<icon_img.length; k++){
+        icon_img[k].addEventListener('click', function(event){
+            event.preventDefault();
+            event.stopImmediatePropagation();
+
+            let menu=document.querySelector('#img_menu');
+            let icon_src=icon_img[k].getAttribute('src');
+            if(icon_src.indexOf('profile_images')!=-1){
+                if(navigator.clipboard){
+                    navigator.clipboard.writeText(icon_src); }
+                disp_rep(0); }
+            else{
+                disp_rep(1); }
+        }); }
+
+
+    function disp_rep(rep){
+        let body=document.querySelector('body');
+        zoom_f=window.getComputedStyle(body).getPropertyValue('zoom');
+        if(!zoom_f){
+            zoom_f=1; } // 拡大ツールがない環境の場合
+
+        let menu=document.querySelector('#img_menu');
+        if(rep==0){
+            menu.textContent='⭕'; }
+        else if(rep==1){
+            menu.textContent='❌'; }
+        menu.style.display="block";
+        menu.style.top=(event.pageY-30) /zoom_f +"px";
+        menu.style.left=(event.pageX-12) /zoom_f +"px";
+        menu.style.filter='hue-rotate(-150deg) brightness(2)';
+        setTimeout(()=>{
+            menu.style.display="none";
+        }, 2000); }
+
+
+    document.body.addEventListener('click', function(event){
+        let menu=document.querySelector('#img_menu');
+        if(menu){
+            menu.style.display="none"; }}); // 画像以外の場所のクリックでマークを消す
+
+} // get_src()
