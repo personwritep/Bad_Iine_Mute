@@ -1,0 +1,318 @@
+// ==UserScript==
+// @name         Bad Iine Mute
+// @namespace    http://tampermonkey.net/
+// @version      0.2
+// @description  管理トップ「いいねリスト」から 自動入力を排除
+// @author       Ameba Blog User
+// @match        https://blog.ameba.jp/ucs/*
+// @grant        none
+// ==/UserScript==
+
+window.addEventListener('load', function(){
+    'use strict';
+
+    var iine_block_data={};
+    var iine_block_id=[];
+    var iine_block_img=[];
+    var array_id=[];
+    var array_img=[];
+    var edit_mode=0;
+
+    var read_json=localStorage.getItem('iine_id_back');
+    iine_block_data=JSON.parse(read_json);
+    if(iine_block_data==null){
+        iine_block_data=[['tmp1', 'img1'], ['tmp2', 'img2']]; }
+
+    for(let k=0; k<iine_block_data.length; k++){
+        iine_block_id[k]=iine_block_data[k][0]; }
+    var block_filter_id=iine_block_id.join('|');
+    var block_regex_id=RegExp(block_filter_id);
+
+    for(let k=0; k<iine_block_data.length; k++){
+        iine_block_img[k]=iine_block_data[k][1]; }
+    var block_filter_img=iine_block_img.join('|');
+    var block_regex_img=RegExp(block_filter_img);
+
+
+    var target0=document.querySelector('#contents'); // 監視 target
+    var monitor0=new MutationObserver(mode_select);
+    monitor0.observe(target0, {childList: true, subtree: true}); // 監視開始
+
+    function mode_select(){
+
+        if(document.querySelector('#iineEntry')){ // 管理トップ
+            let iine_title=document.querySelector('#iineEntry th');
+            iine_title.onclick=function(event){
+                if(edit_mode==0){
+                    edit_mode=1;
+                    iine_title.style.boxShadow='inset 0 0 0 20px red';
+                    iine_title.style.color='#fff'; }
+                else if(edit_mode==1){
+                    edit_mode=0;
+                    iine_title.style.boxShadow='none';
+                    iine_title.style.color='#666'; }
+                event.preventDefault();
+                blocker(); }
+
+            if(edit_mode==0){
+                iine_title.style.boxShadow='none';
+                iine_title.style.color='#666'; }
+            else if(edit_mode==1){
+                iine_title.style.boxShadow='inset 0 0 0 20px red';
+                iine_title.style.color='#fff'; }}
+
+        if(document.querySelector('#iineHistoryEntryFrame')){ // 履歴 タブ1
+            let iine_title=document.querySelector('#iineHistoryEntryFrame th');
+            iine_title.onclick=function(event){
+                if(edit_mode==0){
+                    edit_mode=1;
+                    iine_title.style.boxShadow='inset 0 0 0 20px red';
+                    iine_title.style.color='#fff'; }
+                else if(edit_mode==1){
+                    edit_mode=0;
+                    iine_title.style.boxShadow='none';
+                    iine_title.style.color='#666'; }
+                event.preventDefault();
+                blocker(); }
+
+            if(edit_mode==0){
+                iine_title.style.boxShadow='none';
+                iine_title.style.color='#666'; }
+            else if(edit_mode==1){
+                iine_title.style.boxShadow='inset 0 0 0 20px red';
+                iine_title.style.color='#fff'; }}
+
+        if(document.querySelector('#iineHistoryUserFrame')){ // 履歴 タブ2
+            let iine_title=document.querySelector('#iineHistoryUserFrame th');
+            iine_title.onclick=function(event){
+                if(edit_mode==0){
+                    edit_mode=1;
+                    iine_title.style.boxShadow='inset 0 0 0 20px red';
+                    iine_title.style.color='#fff'; }
+                else if(edit_mode==1){
+                    edit_mode=0;
+                    iine_title.style.boxShadow='none';
+                    iine_title.style.color='#666'; }
+                event.preventDefault();
+                blocker(); }
+
+            if(edit_mode==0){
+                iine_title.style.boxShadow='none';
+                iine_title.style.color='#666'; }
+            else if(edit_mode==1){
+                iine_title.style.boxShadow='inset 0 0 0 20px red';
+                iine_title.style.color='#fff'; }}}
+
+
+    var target1=document.querySelector('#contents'); // 監視 target
+    var monitor1=new MutationObserver(blocker);
+    monitor1.observe(target1, {childList: true, subtree: true}); // 監視開始
+
+    blocker();
+
+    function blocker(){
+        let k;
+        let user_href=[];
+        let iineImg=[];
+        let iine_span=[];
+        let iine_tr=[];
+        let Img_src=[];
+
+        if(document.querySelector('#iineEntry')){ // 管理トップ
+            iineImg=document.querySelectorAll('#iineEntry img');
+            for(k=0; k<iineImg.length; k++){ // ユーザーアイコンのマスク
+                Img_src[k]=iineImg[k].getAttribute('src');
+                if(block_regex_img.test(Img_src[k])==true){
+                    if(edit_mode==0){
+                        iineImg[k].style.display='none'; }
+                    else{
+                        iineImg[k].style.display='block';
+                        iineImg[k].style.outline='2px solid red'; }}}}
+
+        if(document.querySelector('#iineHistoryEntryFrame')){ // 履歴 タブ1
+            iine_span=document.querySelectorAll('.userImg span');
+            iineImg=document.querySelectorAll('.userImg img');
+            for(k=0; k<iineImg.length; k++){ // ユーザーアイコンのマスク
+                Img_src[k]=iineImg[k].getAttribute('src');
+                if(block_regex_img.test(Img_src[k])==true){
+                    if(edit_mode==0){
+                        iine_span[k].style.display='none'; }
+                    else{
+                        iine_span[k].style.display='inline-block';
+                        iine_span[k].style.outline='2px solid red'; }}}}
+
+        if(document.querySelector('#iineHistoryUserFrame')){ // 履歴 タブ2
+            iine_tr=document.querySelectorAll('#iineHistoryUserFrame tr');
+            for(k=1; k<iine_tr.length; k++){ // ユーザーアイコンのマスク
+                if(iine_tr[k].querySelector('.heading a')){
+                    user_href[k]=iine_tr[k].querySelector('.heading a').getAttribute('href');
+                    if(block_regex_id.test(user_href[k])==true){
+                        if(edit_mode==0){
+                            iine_tr[k].style.display='none'; }
+                        else{
+                            iine_tr[k].style.display='table-row';
+                            iine_tr[k].style.outline='2px solid red'; }}}}}}
+
+
+    var target2=document.querySelector('body'); // 監視 target
+    var monitor2=new MutationObserver(blocker_dia);
+    monitor2.observe(target2, {childList: true, subtree: true}); // 監視開始
+
+    function blocker_dia(){
+        let k;
+        let user_li=[];
+        let user_href=[];
+
+        if(document.querySelector('#iineEntry')){ // 管理トップ
+            user_li=document.querySelectorAll('#iineEntoryContents li');
+            if(user_li.length !=0){
+                for(k=0; k<user_li.length; k++){ // ダイアログのリストのマスク
+                    if(user_li[k].querySelector('a')){
+                        user_href[k]=user_li[k].querySelector('a').getAttribute('href');
+                        if(block_regex_id.test(user_href[k])==true){
+                            if(edit_mode==0){
+                                user_li[k].style.display='none';
+                                user_li[k].style.boxShadow='none'; }
+                            else{
+                                user_li[k].style.display='block';
+                                user_li[k].style.boxShadow='#fff 0 0 0 1px inset, red 0 0 0 3px inset'; }}}}}
+
+            let more=document.querySelector('.more span'); // Moreがある場合は全て呼込む
+            if(more !=null){ more.click(); }}
+
+        if(document.querySelector('#iineHistoryEntryFrame')){ // 履歴 タブ1
+            user_li=document.querySelectorAll('#iineEntryContents li');
+            if(user_li.length !=0){
+                for(k=0; k<user_li.length; k++){ // ダイアログのリストのマスク
+                    if(user_li[k].querySelector('a')){
+                        user_href[k]=user_li[k].querySelector('a').getAttribute('href');
+                        if(block_regex_id.test(user_href[k])==true){
+                            if(edit_mode==0){
+                                user_li[k].style.display='none';
+                                user_li[k].style.boxShadow='none'; }
+                            else{
+                                user_li[k].style.display='block';
+                                user_li[k].style.boxShadow='#fff 0 0 0 1px inset, red 0 0 0 3px inset'; }}}}}
+
+            let more=document.querySelector('#moreLinkBtm'); // Moreがある場合は全て呼込む
+            if(more !=null){ more.click(); }}}
+
+
+    var target3=document.querySelector('body'); // 監視 target
+    var monitor3=new MutationObserver(checker);
+    monitor3.observe(target3, {childList: true, subtree: true}); // 監視開始
+
+    function checker(){
+        let k;
+        let user_li=[];
+        let iine_tr=[];
+        let user_href=[];
+        let user_id=[];
+        let user_src=[];
+
+        if(document.querySelector('#iineEntry')){ // 管理トップ
+            user_li=document.querySelectorAll('#iineEntoryContents li');
+            if(user_li.length !=0){
+                for(k=0; k<user_li.length; k++){
+                    let n=k;
+                    if(user_li[n].querySelector('a')){
+                        user_href[n]=user_li[n].querySelector('a').getAttribute('href');
+                        user_src[n]=user_li[n].querySelector('img').getAttribute('src');
+                        user_li[n].onclick=function(event){
+                            if (event.which==17 || event.ctrlKey==true){
+                                event.preventDefault();
+                                local_backup(n); }}}
+
+                    function local_backup(n){
+                        if(block_regex_id.test(user_href[n])!=true){
+                            let ok=confirm(" ⛔　 排除リストに登録しますか？");
+                            if(ok){
+                                user_id[n]=user_href[n].replace('https://ameblo.jp/', '');
+                                user_src[n]=user_src[n].replace('https://stat.profile.ameba.jp/profile_images/', '');
+                                iine_block_data.push([user_id[n], user_src[n]]);
+                                let write_json=JSON.stringify(iine_block_data);
+                                localStorage.setItem('iine_id_back', write_json);
+                                location.reload(); }}
+
+                        if(block_regex_id.test(user_href[n])==true){
+                            let ok=confirm(" ✅　 排除リストから外し表示させますか？");
+                            if(ok){
+                                user_id[n]=user_href[n].replace('https://ameblo.jp/', '');
+                                iine_block_data.splice(iine_block_id.indexOf(user_id[n]), 1);
+                                let write_json=JSON.stringify(iine_block_data);
+                                localStorage.setItem('iine_id_back', write_json);
+                                location.reload(); }}}}}}
+
+        if(document.querySelector('#iineHistoryEntryFrame')){ // 履歴 タブ1
+            user_li=document.querySelectorAll('#iineEntryContents li');
+            if(user_li.length !=0){
+                for(k=0; k<user_li.length; k++){
+                    let n=k;
+                    if(user_li[n].querySelector('a')){
+                        user_href[n]=user_li[n].querySelector('a').getAttribute('href');
+                        user_src[n]=user_li[n].querySelector('img').getAttribute('src');
+                        user_li[n].onclick=function(event){
+                            if (event.which==17 || event.ctrlKey==true){
+                                event.preventDefault();
+                                local_backup(n); }}}
+
+                    function local_backup(n){
+                        if(block_regex_id.test(user_href[n])!=true){
+                            let ok=confirm(" ⛔　 排除リストに登録しますか？");
+                            if(ok){
+                                user_id[n]=user_href[n].replace('https://ameblo.jp/', '');
+                                user_id[n]=user_id[n].replace(/\//g, '');
+                                user_src[n]=user_src[n].replace('https://stat.profile.ameba.jp/profile_images/', '');
+                                user_src[n]=user_src[n].replace(/\?cpc=100/g, '');
+                                iine_block_data.push([user_id[n], user_src[n]]);
+                                let write_json=JSON.stringify(iine_block_data);
+                                localStorage.setItem('iine_id_back', write_json);
+                                location.reload(); }}
+
+                        if(block_regex_id.test(user_href[n])==true){
+                            let ok=confirm(" ✅　 排除リストから外し表示させますか？");
+                            if(ok){
+                                user_id[n]=user_href[n].replace('https://ameblo.jp/', '');
+                                user_id[n]=user_id[n].replace(/\//g, '');
+                                iine_block_data.splice(iine_block_id.indexOf(user_id[n]), 1);
+                                let write_json=JSON.stringify(iine_block_data);
+                                localStorage.setItem('iine_id_back', write_json);
+                                location.reload(); }}}}}}
+
+        if(document.querySelector('#iineHistoryUserFrame')){ // 履歴 タブ2
+            iine_tr=document.querySelectorAll('#iineHistoryUserFrame tr');
+            for(k=1; k<iine_tr.length; k++){
+                let n=k;
+                iine_tr[n].onclick=function(event){
+                    if (event.which==17 || event.ctrlKey==true){
+                        event.preventDefault();
+                        local_backup(n); }}}
+
+            function local_backup(n){
+                if(iine_tr[n].querySelector('.heading a')){
+                    user_href[n]=iine_tr[n].querySelector('.heading a').getAttribute('href');
+                    user_src[n]=iine_tr[n].querySelector('.list_img img').getAttribute('src');
+                    if(block_regex_id.test(user_href[n])!=true){
+                        let ok=confirm(" ⛔　 排除リストに登録しますか？");
+                        if(ok){
+                            user_id[n]=user_href[n].replace('https://ameblo.jp/', '');
+                            user_id[n]=user_id[n].replace(/\//g, '');
+                            user_src[n]=user_src[n].replace('https://stat.profile.ameba.jp/profile_images/', '');
+                            user_src[n]=user_src[n].replace(/\?cpc=100/g, '');
+                            iine_block_data.push([user_id[n], user_src[n]]);
+                            let write_json=JSON.stringify(iine_block_data);
+                            localStorage.setItem('iine_id_back', write_json);
+                            location.reload(); }}
+
+                    if(block_regex_id.test(user_href[n])==true){
+                        let ok=confirm(" ✅　 排除リストから外し表示させますか？");
+                        if(ok){
+                            user_id[n]=user_href[n].replace('https://ameblo.jp/', '');
+                            user_id[n]=user_id[n].replace(/\//g, '');
+                            iine_block_data.splice(iine_block_id.indexOf(user_id[n]), 1);
+                            let write_json=JSON.stringify(iine_block_data);
+                            localStorage.setItem('iine_id_back', write_json);
+                            location.reload(); }}}}}
+    } // checker
+
+})
