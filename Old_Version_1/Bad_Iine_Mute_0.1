@@ -1,0 +1,138 @@
+// ==UserScript==
+// @name         Bad Iine Mute
+// @namespace    http://tampermonkey.net/
+// @version      0.1
+// @description  管理トップ「いいねリスト」から 自動入力を排除
+// @author       Ameba Blog User
+// @match        https://blog.ameba.jp/ucs/top.do
+// @grant        none
+// ==/UserScript==
+
+window.addEventListener('load', function(){
+    'use strict';
+
+    var iine_block_data={};
+    var iine_block_id=[];
+    var iine_block_img=[];
+    var array_id=[];
+    var array_img=[];
+
+    var read_json=localStorage.getItem('iine_id_back');
+    iine_block_data=JSON.parse(read_json);
+    if(iine_block_data==null){
+        iine_block_data=[['tmp1', 'img1'], ['tmp2', 'img2']]; }
+
+    for(let k=0; k<iine_block_data.length; k++){
+        iine_block_id[k]=iine_block_data[k][0]; }
+    var block_filter_id=iine_block_id.join('|');
+    var block_regex_id=RegExp(block_filter_id);
+
+    for(let k=0; k<iine_block_data.length; k++){
+        iine_block_img[k]=iine_block_data[k][1]; }
+    var block_filter_img=iine_block_img.join('|');
+    var block_regex_img=RegExp(block_filter_img);
+
+
+    var edit_mode=0;
+    var iine_title=document.querySelector('#iineEntryBody .ttl');
+    iine_title.onclick=function(event){
+        if(edit_mode==0){
+            edit_mode=1;
+        iine_title.style.outline='1px solid #2196f3'; }
+        else if(edit_mode==1){
+        edit_mode=0;
+        iine_title.style.outline='none'; }
+        event.preventDefault();
+        blocker(); }
+
+
+    var target=document.querySelector('#frame'); // 監視 target
+    var monitor=new MutationObserver(blocker);
+    monitor.observe(target, {childList: true, subtree: true}); // 監視開始
+
+    blocker();
+
+    function blocker(){
+        let k;
+        let user_li
+        let user_href=[];
+        let user_a=[];
+        let iineImg=[];
+        let Img_src=[];
+
+        iineImg=document.querySelectorAll('#iineEntryBody .iineImg img');
+        for(k=0; k<iineImg.length; k++){ // 管理トップ画面のアイコンのマスク
+            Img_src[k]=iineImg[k].getAttribute('src');
+            if(block_regex_img.test(Img_src[k])==true){
+                if(edit_mode==0){
+                    iineImg[k].style.display='none'; }
+                else{
+                    iineImg[k].style.display='block';
+                    iineImg[k].style.opacity='0.5'; }}}
+
+        user_li=document.querySelectorAll('#iineEntoryContents li');
+        if(user_li.length !=0){
+            for(k=0; k<user_li.length; k++){ // ダイアログのリンクリストのマスク
+                user_href[k]=user_li[k].querySelector('a').getAttribute('href');
+                if(block_regex_id.test(user_href[k])==true){
+                    if(edit_mode==0){
+                        user_li[k].style.height='0';
+                        user_li[k].style.overflow='hidden';
+                        user_li[k].style.borderColor='transparent';
+                        user_li[k].style.background='transparent'; }
+                    else{
+                        user_li[k].style.height='auto';
+                        user_li[k].style.borderColor='#ccc';
+                        user_li[k].style.background='#eee'; }}}}}
+
+
+    var target1=document.querySelector('#frame'); // 監視 target
+    var monitor1=new MutationObserver(checker);
+    monitor1.observe(target1, {childList: true, subtree: true}); // 監視開始
+
+    checker();
+
+    function checker(){
+        let k;
+        let user_href=[];
+        let user_a=[];
+        let user_id=[];
+        let user_img=[];
+        let user_src=[];
+
+        user_a=document.querySelectorAll('#iineEntoryContents li a');
+        user_img=document.querySelectorAll('#iineEntoryContents li img');
+
+        if(user_a.length !=0){
+            for(k=0; k<user_a.length; k++){
+                let n=k;
+                user_href[n]=user_a[n].getAttribute('href');
+                user_a[n].onclick=function(event){
+                    if (event.which==17 || event.ctrlKey==true){
+                        event.preventDefault();
+                        local_backup(n); }}}
+
+            function local_backup(n){
+                if(block_regex_id.test(user_href[n])!=true){
+                    let ok=confirm(" ⛔　 排除リストに登録しますか？");
+                    if(ok){
+                        user_id[n]=user_href[n].replace('https://ameblo.jp/', '');
+                        user_src[n]=user_img[n].getAttribute('src');
+                        user_src[n]=user_src[n].replace('https://stat.profile.ameba.jp/profile_images/', '');
+                        iine_block_data.push([user_id[n], user_src[n]]);
+
+                        let write_json=JSON.stringify(iine_block_data);
+                        localStorage.setItem('iine_id_back', write_json);
+                        location.reload(); }}
+
+                if(block_regex_id.test(user_href[n])==true){
+                    let ok=confirm(" ✅　 排除リストから外し表示させますか？");
+                    if(ok){
+                        user_id[n]=user_href[n].replace('https://ameblo.jp/', '');
+                        iine_block_data.splice(iine_block_id.indexOf(user_id[n]), 1);
+                        let write_json=JSON.stringify(iine_block_data);
+                        localStorage.setItem('iine_id_back', write_json);
+                        location.reload(); }}}
+        }} // checker
+
+})
