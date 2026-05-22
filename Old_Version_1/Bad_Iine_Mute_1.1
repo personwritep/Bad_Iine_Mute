@@ -1,0 +1,551 @@
+// ==UserScript==
+// @name         Bad Iine Mute
+// @namespace    http://tampermonkey.net/
+// @version      1.1
+// @description  「管理画面」から不良な「いいね！」を非表示にする
+// @author       Ameba Blog User
+// @match        https://blog.ameba.jp/ucs/top*
+// @match        https://blog.ameba.jp/ucs/iine/list.html*
+// @grant        none
+// ==/UserScript==
+
+
+let iine_block_data={}; // 総合ブロックデータ
+let iine_block_id=[];
+let iine_block_img=[];
+let block_filter_id;
+let block_regex_id;
+let block_filter_img;
+let block_regex_img;
+let edit_mode=0;
+
+
+let ua=0;
+let agent=window.navigator.userAgent.toLowerCase();
+if(agent.indexOf('firefox') > -1){ ua=1; } // Firefoxの場合のフラッグ
+
+
+let read_json=localStorage.getItem('iine_id_back'); // ローカルストレージ 保存名
+iine_block_data=JSON.parse(read_json);
+if(iine_block_data==null){
+    iine_block_data=[['tmp1', 'img1'], ['tmp2', 'img2']]; }
+
+reg_set();
+
+function reg_set(){
+    iine_block_id=[];
+    iine_block_img=[];
+    for(let k=0; k<iine_block_data.length; k++){
+        iine_block_id[k]=iine_block_data[k][0];
+        iine_block_img[k]=iine_block_data[k][1]; }
+    block_filter_id=iine_block_id.join('|');
+    block_regex_id=RegExp(block_filter_id);
+    block_filter_img=iine_block_img.join('|');
+    block_regex_img=RegExp(block_filter_img); }
+
+
+
+let target0=document.querySelector('#contents'); // 監視 target
+let monitor0=new MutationObserver(mode_select);
+monitor0.observe(target0, {childList: true, subtree: true}); // 監視開始
+
+mode_select();
+
+function mode_select(){
+    if(document.querySelector('#iineEntry')){ // 管理トップ
+        let div_iine=document.querySelector('#iine');
+        div_iine.style.position='relative';
+        div_iine.style.zIndex='10';
+        let iine_title=document.querySelector('#iineEntry .ttl');
+        let iine_th=document.querySelectorAll('#iineEntry th');
+        iine_title.onclick=function(event){
+            event.preventDefault();
+            if(event.altKey==true){ //「Altキー ＋ 左クリック」
+                if(edit_mode==0){
+                    edit_mode=1;
+                    file_backup(); } // ファイル保存 管理トップ
+                else{
+                    edit_mode=0;
+                    file_backup_end(); }}
+            else{
+                if(edit_mode==0){
+                    edit_mode=1; }
+                else if(edit_mode==1){
+                    edit_mode=0;
+                    file_backup_end(); }}
+            blocker();
+
+            if(edit_mode==0){
+                div_iine.style.boxShadow='none';
+                iine_th[0].style.boxShadow='none';
+                iine_th[1].style.boxShadow='none';
+                iine_th[0].style.color='#666';
+                iine_th[1].style.color='#666'; }
+            else if(edit_mode==1){
+                div_iine.style.boxShadow='rgba(0, 0, 0, 0.5) 0 0 0 100vw';
+                iine_th[0].style.boxShadow='inset 0 0 0 20px red';
+                iine_th[1].style.boxShadow='inset 0 0 0 20px red';
+                iine_th[0].style.color='#fff';
+                iine_th[1].style.color='#fff'; }}}
+
+    if(document.querySelector('#iineHistoryEntryFrame')){ // 履歴 タブ1
+        let iine_title=document.querySelector('#iineHistoryEntryFrame .ttl');
+        let iine_th=document.querySelectorAll('#iineHistoryEntryFrame th');
+        open_more(0);
+        title_disp();
+        iine_title.onclick=function(event){
+            event.preventDefault();
+            if(event.altKey==true){ //「Altキー ＋ 左クリック」
+                if(edit_mode==0){
+                    edit_mode=1;
+                    file_backup(); } // ファイル保存 履歴タブ1
+                else{
+                    edit_mode=0;
+                    file_backup_end(); }}
+            else{
+                if(edit_mode==0){
+                    edit_mode=1; }
+                else if(edit_mode==1){
+                    edit_mode=0;
+                    file_backup_end(); }}
+            title_disp();
+            blocker(); }
+
+        function title_disp(){
+            if(edit_mode==0){
+                iine_th[0].style.boxShadow='none';
+                iine_th[1].style.boxShadow='none';
+                iine_th[0].style.color='#666';
+                iine_th[1].style.color='#666'; }
+            else if(edit_mode==1){
+                iine_th[0].style.boxShadow='inset 0 0 0 20px red';
+                iine_th[1].style.boxShadow='inset 0 0 0 20px red';
+                iine_th[0].style.color='#fff';
+                iine_th[1].style.color='#fff'; }}}
+
+    if(document.querySelector('#iineHistoryUserFrame')){ // 履歴 タブ2
+        let iine_title=document.querySelector('#iineHistoryContent tr:first-child');
+        let iine_th=document.querySelectorAll('#iineHistoryUserFrame th');
+        open_more(1);
+        title_disp();
+        iine_title.onclick=function(event){
+            event.preventDefault();
+            if(edit_mode==0){
+                edit_mode=1; }
+            else if(edit_mode==1){
+                edit_mode=0; }
+            title_disp();
+            blocker(); }
+
+        function title_disp(){
+            if(edit_mode==0){
+                iine_th[0].style.boxShadow='none';
+                iine_th[1].style.boxShadow='none';
+                iine_th[0].style.color='#666';
+                iine_th[1].style.color='#666'; }
+            else if(edit_mode==1){
+                iine_th[0].style.boxShadow='inset 0 0 0 20px red';
+                iine_th[1].style.boxShadow='inset 0 0 0 20px red';
+                iine_th[0].style.color='#fff';
+                iine_th[1].style.color='#fff'; }}}
+} // mode_select()
+
+
+
+function open_more(n){
+    let more=document.querySelector('.moreLinkBottom');
+    let item;
+    if(n==0){
+        item=document.querySelectorAll('#iineHistoryEntryFrame tr'); }
+    if(n==1){
+        item=document.querySelectorAll('#iineHistoryUserFrame tr'); }
+
+    if(more && item.length<18){ // リストを18行まで自動で開く ⭕
+        more.click(); }}
+
+
+
+let target1=document.querySelector('#contents'); // 監視 target
+let monitor1=new MutationObserver(blocker);
+monitor1.observe(target1, {childList: true, subtree: true}); // 監視開始
+
+function blocker(){
+    let k;
+    let user_href=[];
+    let iineImg=[];
+    let iine_span=[];
+    let iine_tr=[];
+    let Img_src=[];
+
+    if(document.querySelector('#iineEntry')){ // 管理トップ
+        let iine_img=document.querySelectorAll('#iineEntry .img');
+        for(k=0; k<iine_img.length; k++){
+            iine_img[k].style.padding='2px'; }
+        iineImg=document.querySelectorAll('#iineEntry img');
+        for(k=0; k<iineImg.length; k++){ // ユーザーアイコンのマスク
+            Img_src[k]=iineImg[k].getAttribute('src');
+            if(block_regex_img.test(Img_src[k])==true){
+                if(edit_mode==0){
+                    iineImg[k].style.display='none'; }
+                else{
+                    iineImg[k].style.display='block';
+                    iineImg[k].style.outline='2px solid red'; }}
+            else{
+                iineImg[k].style.display='block';
+                iineImg[k].style.outline='none'; }}}
+
+    if(document.querySelector('#iineHistoryEntryFrame')){ // 履歴 タブ1
+        iine_span=document.querySelectorAll('.userImg span');
+        iineImg=document.querySelectorAll('.userImg img');
+        for(k=0; k<iineImg.length; k++){ // ユーザーアイコンのマスク
+            Img_src[k]=iineImg[k].getAttribute('src');
+            if(block_regex_img.test(Img_src[k])==true){
+                if(edit_mode==0){
+                    iine_span[k].style.display='none'; }
+                else{
+                    iine_span[k].style.display='inline-block';
+                    iine_span[k].style.outline='2px solid red'; }}
+            else{
+                iine_span[k].style.display='inline-block';
+                iine_span[k].style.outline='none'; }}}
+
+    if(document.querySelector('#iineHistoryUserFrame')){ // 履歴 タブ2
+        iine_tr=document.querySelectorAll('#iineHistoryUserFrame tr');
+        for(k=1; k<iine_tr.length; k++){ // ユーザーアイコンのマスク
+            if(iine_tr[k].querySelector('.heading a')){
+                user_href[k]=iine_tr[k].querySelector('.heading a').getAttribute('href');
+                if(block_regex_id.test(user_href[k])==true){
+                    if(edit_mode==0){
+                        iine_tr[k].style.display='none'; }
+                    else{
+                        iine_tr[k].style.display='table-row';
+                        iine_tr[k].style.boxShadow='inset 0 0 0 1px #fff,inset 0 0 0 3px red'; }}
+                else{
+                    iine_tr[k].style.display='table-row';
+                    iine_tr[k].style.boxShadow='none'; }}}}
+} // blocker()
+
+
+
+let target2=document.querySelector('body'); // 監視 target
+let monitor2=new MutationObserver(blocker_dia);
+monitor2.observe(target2, {childList: true, subtree: true}); // 監視開始
+
+function blocker_dia(){
+    let k;
+    let user_li=[];
+    let user_href=[];
+
+    if(document.querySelector('#iineEntry')){ // 管理トップ
+        smart(0);
+        let header=document.querySelector('#iineEntryFrame .header');
+        let header_link=document.querySelector('#iineEntryFrame .header a');
+        let close=document.querySelector('#iineEntryFrame .header .closeBtn');
+        if(header && header_link && edit_mode==0){
+            header.style.background='#f7f7f7';
+            header_link.style.color='#06c';
+            header_link.style.pointerEvents='auto'; }
+        if(header && header_link && close && edit_mode==1){
+            header.style.background='red';
+            header_link.style.color='#fff';
+            header_link.style.pointerEvents='none';
+            header.onclick=function(){
+                close.click(); }}
+
+        user_li=document.querySelectorAll('#iineEntoryContents li');
+        if(user_li.length !=0){
+            for(k=0; k<user_li.length; k++){ // ダイアログのリストのマスク
+                if(user_li[k].querySelector('a')){
+                    user_href[k]=user_li[k].querySelector('a').getAttribute('href');
+                    if(block_regex_id.test(user_href[k])==true){
+                        if(edit_mode==0){
+                            user_li[k].style.display='none';
+                            user_li[k].style.outline='none'; }
+                        else{
+                            user_li[k].style.display='block';
+                            user_li[k].style.outline='2px solid red';
+                            user_li[k].style.outlineOffset='-3px'; }}
+                    else{
+                        user_li[k].style.outline='none'; }}}}}
+
+    if(document.querySelector('#iineHistoryEntryFrame')){ // 履歴 タブ1
+        smart(1);
+        let header=document.querySelector('#iineEntryHeader');
+        let header_link=document.querySelector('#iineEntryHeader a');
+        let close=document.querySelector('#iineCloseBtn');
+        if(header && header_link && edit_mode==0){
+            header.style.background='#f7f7f7';
+            header_link.style.color='#06c';
+            header_link.style.pointerEvents='auto'; }
+        if(header && header_link && close && edit_mode==1){
+            header.style.background='red';
+            header_link.style.color='#fff';
+            header_link.style.pointerEvents='none';
+            header.onclick=function(){
+                close.click(); }}
+
+        user_li=document.querySelectorAll('#iineEntryContents li');
+        if(user_li.length !=0){
+            for(k=0; k<user_li.length; k++){ // ダイアログのリストのマスク
+                if(user_li[k].querySelector('a')){
+                    user_href[k]=user_li[k].querySelector('a').getAttribute('href');
+                    if(block_regex_id.test(user_href[k])==true){
+                        if(edit_mode==0){
+                            user_li[k].style.display='none';
+                            user_li[k].style.boxShadow='none'; }
+                        else{
+                            user_li[k].style.display='block';
+                            user_li[k].style.boxShadow='#fff 0 0 0 1px inset, red 0 0 0 3px inset'; }}
+                    else{
+                        user_li[k].style.boxShadow='none'; }}}}}
+} // blocker_dia()
+
+
+function smart(n){
+    if(n==0){
+        let headerT=document.querySelector('#iineEntryFrame .header p');
+        if(headerT){
+            headerT.style.fontSize='0';
+            let title=headerT.querySelector('#iineEntryFrame .header p a');
+            if(title){
+                title.style.fontSize='12px';
+                title.style.padding='0 .5em'; }
+            let count=headerT.querySelector('#iineEntryFrame .header p span');
+            if(count){
+                count.style.fontSize='12px'; }}}
+    if(n==1){
+        let headerT=document.querySelector('#iineEntryHeader p');
+        if(headerT){
+            headerT.style.fontSize='0';
+            let title=headerT.querySelector('#iineEntryHeader .tx_bold');
+            if(title){
+                title.style.fontSize='12px';
+                title.style.padding='0 .5em'; }
+            let count=headerT.querySelector('#iineEntryHeader .tx_grayA');
+            if(count){
+                count.style.fontSize='12px'; }}}}
+
+
+
+let target3=document.querySelector('body'); // 監視 target
+let monitor3=new MutationObserver(checker);
+monitor3.observe(target3, {childList: true, subtree: true, attributes: true}); // 監視開始
+
+function checker(){
+    let k;
+    let user_li=[];
+    let iine_tr=[];
+    let user_href=[];
+    let user_id=[];
+    let user_src=[];
+
+    if(document.querySelector('#iineEntry')){ // 管理トップ
+        user_li=document.querySelectorAll('#iineEntoryContents li');
+        if(user_li.length !=0 && edit_mode==1){
+            for(k=0; k<user_li.length; k++){
+                let n=k;
+                if(user_li[n].querySelector('a')){
+                    user_href[n]=user_li[n].querySelector('a').getAttribute('href');
+                    user_src[n]=user_li[n].querySelector('img').getAttribute('src');
+                    user_li[n].onclick=function(event){ // リストのクリックで設定
+                        event.preventDefault(); // クリックしてもリンク先に飛ばない
+                        local_backup(n); }}}
+
+            function local_backup(n){
+                if(block_regex_id.test(user_href[n])!=true){
+                    user_id[n]=user_href[n].replace('https://ameblo.jp/', '');
+                    user_src[n]=user_src[n].replace('https://stat.profile.ameba.jp/profile_images/', '');
+                    iine_block_data.push([user_id[n], user_src[n]]);
+                    let write_json=JSON.stringify(iine_block_data);
+                    localStorage.setItem('iine_id_back', write_json); }
+
+                else if(block_regex_id.test(user_href[n])==true){
+                    user_id[n]=user_href[n].replace('https://ameblo.jp/', '');
+                    iine_block_data.splice(iine_block_id.indexOf(user_id[n]), 1);
+                    let write_json=JSON.stringify(iine_block_data);
+                    localStorage.setItem('iine_id_back', write_json); }
+
+                reg_set();
+                blocker_dia();
+                blocker(); }}}
+
+    if(document.querySelector('#iineHistoryEntryFrame')){ // 履歴 タブ1
+        user_li=document.querySelectorAll('#iineEntryContents li');
+        if(user_li.length !=0 && edit_mode==1){
+            for(k=0; k<user_li.length; k++){
+                let n=k;
+                if(user_li[n].querySelector('a')){
+                    user_href[n]=user_li[n].querySelector('a').getAttribute('href');
+                    user_src[n]=user_li[n].querySelector('img').getAttribute('src');
+                    user_li[n].onclick=function(event){ // リストのクリックで設定
+                        event.preventDefault(); // クリックしてもリンク先に飛ばない
+                        local_backup(n); }}}
+
+            function local_backup(n){
+                if(block_regex_id.test(user_href[n])!=true){
+                    user_id[n]=user_href[n].replace('https://ameblo.jp/', '');
+                    user_id[n]=user_id[n].replace(/\//g, '');
+                    user_src[n]=user_src[n].replace('https://stat.profile.ameba.jp/profile_images/', '');
+                    user_src[n]=user_src[n].replace(/\?cpc=100/g, '');
+                    iine_block_data.push([user_id[n], user_src[n]]);
+                    let write_json=JSON.stringify(iine_block_data);
+                    localStorage.setItem('iine_id_back', write_json); }
+
+                else if(block_regex_id.test(user_href[n])==true){
+                    user_id[n]=user_href[n].replace('https://ameblo.jp/', '');
+                    user_id[n]=user_id[n].replace(/\//g, '');
+                    iine_block_data.splice(iine_block_id.indexOf(user_id[n]), 1);
+                    let write_json=JSON.stringify(iine_block_data);
+                    localStorage.setItem('iine_id_back', write_json); }
+
+                reg_set();
+                blocker_dia();
+                blocker(); }}}
+
+    if(document.querySelector('#iineHistoryUserFrame')){ // 履歴 タブ2
+        iine_tr=document.querySelectorAll('#iineHistoryUserFrame tr');
+        for(k=1; k<iine_tr.length; k++){
+            let n=k;
+
+            let user_icon_link=iine_tr[n].querySelector('.list_img');
+            let user_link=iine_tr[n].querySelector('.heading a');
+            if(user_link && edit_mode==0){
+                user_icon_link.style.pointerEvents='auto';
+                user_link.style.pointerEvents='auto'; }
+            if(user_link && edit_mode==1){
+                user_icon_link.style.pointerEvents='none';
+                user_link.style.pointerEvents='none'; }
+
+            iine_tr[n].onclick=function(){
+                local_backup(n); }}
+
+        function local_backup(n){
+            let user_link=iine_tr[n].querySelector('.heading a');
+            if(user_link && edit_mode==1){
+                user_href[n]=user_link.getAttribute('href');
+                user_src[n]=iine_tr[n].querySelector('.list_img img').getAttribute('src');
+                if(block_regex_id.test(user_href[n])!=true){
+                    user_id[n]=user_href[n].replace('https://ameblo.jp/', '');
+                    user_id[n]=user_id[n].replace(/\//g, '');
+                    user_src[n]=user_src[n].replace('https://stat.profile.ameba.jp/profile_images/', '');
+                    user_src[n]=user_src[n].replace(/\?cpc=100/g, '');
+                    iine_block_data.push([user_id[n], user_src[n]]);
+                    let write_json=JSON.stringify(iine_block_data);
+                    localStorage.setItem('iine_id_back', write_json); }
+
+                else if(block_regex_id.test(user_href[n])==true){
+                    user_id[n]=user_href[n].replace('https://ameblo.jp/', '');
+                    user_id[n]=user_id[n].replace(/\//g, '');
+                    iine_block_data.splice(iine_block_id.indexOf(user_id[n]), 1);
+                    let write_json=JSON.stringify(iine_block_data);
+                    localStorage.setItem('iine_id_back', write_json); }
+
+                reg_set();
+                blocker(); }}}
+} // checker()
+
+
+
+function file_backup(){
+    let style_text
+    if(document.querySelector('#iineEntry')){ // 管理トップ
+        style_text=['position: absolute; top: -50px; width: 100%; background: #e2eef0;',
+                    'height: 36px; box-sizing: border-box; border: 1px solid #e2e2e2;'].join(' ');
+        if(ua==1){
+            style_text=['position: absolute; top: -50px; width: 100%; background: #e2eef0;',
+                        'height: 36px; box-sizing: border-box; border: 1px solid #e2e2e2;'].join(' '); }}
+    if(document.querySelector('#iineHistoryEntryFrame')){ // 履歴 タブ1
+        style_text=['position: absolute; top: 0; left: 0; width: 100%; background: #e2eef0;',
+                    'height: 36px; box-sizing: border-box; border: 1px solid #e2e2e2;'].join(' '); }
+    let insert_dialog;
+    insert_dialog=document.createElement('div');
+    insert_dialog.setAttribute('id', 'imute_dia');
+    insert_dialog.setAttribute('style', style_text);
+    if(document.querySelector('#iineEntry')){ // 管理トップ
+        let imute=document.querySelector('#imute_dia');
+        if(!imute){
+            document.querySelector('#iine').appendChild(insert_dialog); }}
+    if(document.querySelector('#iineHistoryEntryFrame')){ // 履歴 タブ1
+        let imute=document.querySelector('#imute_dia');
+        if(!imute){
+            document.querySelector('#iineHistoryEntryFrame').appendChild(insert_dialog); }}
+
+    let button1=document.createElement('input');
+    button1.setAttribute('type', 'submit');
+    button1.setAttribute('value', '排除リストを保存する');
+    button1.setAttribute('style', 'padding: 2px 8px 0; margin: 4px 30px');
+    if(ua==1){
+        button1.setAttribute('style', 'padding: 0 8px; margin: 4px 30px'); }
+    insert_dialog.appendChild(button1);
+
+    button1.onclick=function(){
+        let write_json=JSON.stringify(iine_block_data);
+        let blob=new Blob([write_json], {type: 'application/json'});
+        let a_elem=document.createElement('a');
+        a_elem.href=URL.createObjectURL(blob);
+        a_elem.download='iine_mute.json'; // 保存ファイル名
+        if(ua==1){
+            a_elem.target = '_blank';
+            document.body.appendChild(a_elem); }
+        a_elem.click();
+        if(ua==1){
+            document.body.removeChild(a_elem); }
+        URL.revokeObjectURL(a_elem.href); }
+
+    let button_add=document.createElement('input');
+    button_add.setAttribute('type', 'checkbox');
+    button_add.setAttribute('style', 'margin: 0 5px 0 40px');
+    insert_dialog.appendChild(button_add);
+
+    let button_add_label=document.createElement('span');
+    button_add_label.setAttribute('style', 'background: #e2eef0; vertical-align: -1px');
+    button_add_label.innerText='差分追加';
+    insert_dialog.appendChild(button_add_label);
+
+    let button2=document.createElement('input');
+    button2.setAttribute('type', 'file');
+    button2.setAttribute('style', 'margin: 4px 0 0 10px; vertical-align: 1px; width: 320px');
+    if(ua==1){
+        button2.setAttribute('style', 'margin: 4px 0 0 10px; width: 320px'); }
+    insert_dialog.appendChild(button2);
+
+    button_add.checked=true;
+    button2.addEventListener("change" , function(){
+        if(!(button2.value)) return; // ファイルが選択されない場合
+        let file_list=button2.files;
+        if(!file_list) return; // ファイルリストが選択されない場合
+        let file=file_list[0];
+        if(!file) return; // ファイルが無い場合
+
+        let file_reader=new FileReader();
+        file_reader.readAsText(file);
+        file_reader.onload=function(){
+            if(file_reader.result.slice(0, 15)=='[["tmp1","img1"'){ // iine_mute.jsonの確認
+                let data_in=JSON.parse(file_reader.result);
+                if(button_add.checked==true){ // 差分追加処理
+                    for(let k=0; k<data_in.length; k++){
+                        if(block_regex_id.test(data_in[k][0])!=true){
+                            iine_block_data.push([data_in[k][0], data_in[k][1]]); }}}
+                else{
+                    iine_block_data=data_in; } // 読込み上書き処理
+                let write_json=JSON.stringify(iine_block_data);
+                localStorage.setItem('iine_id_back', write_json); // ローカルストレージ 保存名
+                reg_set();
+                blocker(); }}; });
+
+    let button3=document.createElement('input');
+    button3.setAttribute('type', 'submit');
+    button3.setAttribute('value', '✖ 閉じる');
+    button3.setAttribute('style', 'padding: 2px 6px 0; margin: 4px 0 0 50px');
+    if(ua==1){
+        button3.setAttribute('style', 'padding: 0 6px; margin: 4px 0 0 50px'); }
+    insert_dialog.appendChild(button3);
+    button3.onclick=function(){
+        insert_dialog.remove(); }
+} // file_backup()
+
+
+function file_backup_end(){
+    let imute=document.querySelector('#imute_dia');
+    if(imute){
+        imute.remove(); }}
